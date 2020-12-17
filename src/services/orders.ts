@@ -18,13 +18,14 @@ class OrdersServiceImpl implements OrdersService {
   public process_orders(order):void {
     let unfulfilled = [];
     let current_package = new Package(order.order_id);
-    let remaining_orders = {
-      order_id: order.order_id,
-      requested: []
-    };
-    console.log("ORDER:", order)
+    let remaining_orders = order;
+
     for (let i = 0; i < order.requested.length; i++) {
       let order_item = order.requested[i];
+      if (order_item.quantity === 0) {
+        remaining_orders.requested.splice(i, 1)
+        continue;
+      }
       let inventory_item = Inventory.get_product(order_item.product_id);
       let remaining_mass = 1800 - current_package.total_weight;
       let packages_to_send = 0;
@@ -36,6 +37,7 @@ class OrdersServiceImpl implements OrdersService {
       } else {
         packages_to_send = Math.min(max_packages, inventory_item.quantity);
       }
+
       const more_than_available_required = order_item.quantity > inventory_item.quantity;
       const more_than_zero_left = order_item.quantity - packages_to_send > 0;
 
@@ -43,7 +45,8 @@ class OrdersServiceImpl implements OrdersService {
         unfulfilled.push({
           product_id: order.requested[i].product_id,
           quantity: order_item.quantity - packages_to_send
-        })
+        });
+        remaining_orders.requested[i].quantity -= order_item.quantity - packages_to_send;
       }
 
       Inventory.update_product_quanity(inventory_item.product_id, inventory_item.quantity);
@@ -58,16 +61,9 @@ class OrdersServiceImpl implements OrdersService {
           }],
           current_package.total_weight += packages_to_send * inventory_item.mass_g
         );
-
+        remaining_orders.requested[i].quantity -= packages_to_send
       } else {
         this.outgoing_packages.push(current_package)
-      }
-      if (packages_to_send < order_item.quantity &&
-        order_item.quantity < inventory_item.quantity) {
-        remaining_orders.requested.push({
-          product_id: order_item.product_id,
-          quantity: order_item.quantity - packages_to_send
-        })
       }
     }
 
@@ -83,7 +79,6 @@ class OrdersServiceImpl implements OrdersService {
         requested: unfulfilled
       });
     }
-
     if (remaining_orders.requested.length > 0) {
       this.process_orders(remaining_orders)
       return;
