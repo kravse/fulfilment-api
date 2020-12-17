@@ -28,4 +28,4 @@ Orders.process_orders(order);
 * Endpoints assume that data will be properly formatted. This will obviously not always be the case.
 * The `process_orders()` function in the orders service could use some refactoring to make it more readable and elegant.
 * The TypeScript type declarations could use a bit of improvement. They're a bit lacking.
-* It'd be great to have a revovling user input function that gets user inputs on the command line.
+* It'd be great to have a revolving user input function that gets user inputs on the command line.
