@@ -16,45 +16,78 @@ class OrdersServiceImpl implements OrdersService {
   private outgoing_packages = [];
 
   public process_orders(order):void {
+    let unfulfilled = [];
     let current_package = new Package(order.order_id);
-    let remaining_order = order;
-
+    let remaining_orders = {
+      order_id: order.order_id,
+      requested: []
+    };
+    console.log("ORDER:", order)
     for (let i = 0; i < order.requested.length; i++) {
-      let inventory_item = Inventory.get_product(order.requested[i].product_id);
+      let order_item = order.requested[i];
+      let inventory_item = Inventory.get_product(order_item.product_id);
+      let remaining_mass = 1800 - current_package.total_weight;
+      let packages_to_send = 0;
 
-      if (inventory_item.quantity === 0) {
-        this.unfulfiled_orders.push(order.requested[i]);
-        continue;
+      let max_packages = Math.floor(remaining_mass / inventory_item.mass_g);
+
+      if (order_item.quantity < max_packages) {
+        packages_to_send = order_item.quantity;
+      } else {
+        packages_to_send = Math.min(max_packages, inventory_item.quantity);
+      }
+      const more_than_available_required = order_item.quantity > inventory_item.quantity;
+      const more_than_zero_left = order_item.quantity - packages_to_send > 0;
+
+      if (more_than_available_required && more_than_zero_left) {
+        unfulfilled.push({
+          product_id: order.requested[i].product_id,
+          quantity: order_item.quantity - packages_to_send
+        })
       }
 
-      const item_specifics = this.calculate_specifics(order.requested[i], inventory_item);
-      const package_mass = current_package.total_weight + item_specifics.mass_g;
+      Inventory.update_product_quanity(inventory_item.product_id, inventory_item.quantity);
 
-      if (package_mass < 1800) {
-        inventory_item.quantity = item_specifics.quantity;
+      let projected_mass = current_package.total_weight + (packages_to_send * inventory_item.mass_g)
+      if (projected_mass <= 1800) {
+        current_package = new Package(
+          current_package.order_id,
+          [...current_package.items, {
+            product_id: order_item.product_id,
+            quantity: packages_to_send
+          }],
+          current_package.total_weight += packages_to_send * inventory_item.mass_g
+        );
 
-        if (inventory_item.quantity > 0) {
-          current_package = new Package(
-            current_package.order_id,
-            [...current_package.items, inventory_item],
-            package_mass
-          );
-        }
-
-        remaining_order.requested[i].quantity -= inventory_item.quantity;
-        if (remaining_order.requested[i].quantity === 0) {
-          remaining_order.requested.slice(i, 1);
-        }
-
-        Inventory.update_product_quanity(inventory_item.product_id, inventory_item.quantity);
       } else {
-        this.outgoing_packages.push(current_package);
-        this.process_orders(remaining_order);
-        return;
+        this.outgoing_packages.push(current_package)
+      }
+      if (packages_to_send < order_item.quantity &&
+        order_item.quantity < inventory_item.quantity) {
+        remaining_orders.requested.push({
+          product_id: order_item.product_id,
+          quantity: order_item.quantity - packages_to_send
+        })
       }
     }
-    this.outgoing_packages.push(current_package);
-    this.ship_package();
+
+    if (current_package.items.length > 0) this.outgoing_packages.push(current_package)
+    this.ship_package()
+    if (unfulfilled.length > 0) {
+      Logger.logMessage('Unfulfiled packages',
+        `Unable to fulfill the following packages, stored for later.`,
+        unfulfilled);
+
+      this.unfulfiled_orders.push({
+        order_id: order.order_id,
+        requested: unfulfilled
+      });
+    }
+
+    if (remaining_orders.requested.length > 0) {
+      this.process_orders(remaining_orders)
+      return;
+    }
   }
 
   public process_unfulfilled() {
@@ -62,25 +95,15 @@ class OrdersServiceImpl implements OrdersService {
     Logger.logMessage('processing orders', `Processed ${this.unfulfiled_orders.length} unfulfilled orders; `);
     let orders = this.unfulfiled_orders;
     this.unfulfiled_orders = [];
-    this.process_orders(orders);
-  }
-
-  private calculate_specifics (order_item, inventory_item):any {
-    let quantity = 0;
-    let mass_g = 0;
-    let target_quantity = order_item.quantity
-    if (inventory_item.quantity < target_quantity) target_quantity = inventory_item.quantity;
-    while (quantity < target_quantity && mass_g < 1800) {
-      mass_g += inventory_item.mass_g;
-      quantity++;
+    for (let order of orders) {
+      this.process_orders(order);
     }
-    return { quantity: quantity, mass_g: mass_g };
   }
 
   private ship_package() {
     if (this.outgoing_packages.length > 0) {
       Logger.logMessage('shipping notice',
-        `Shipped a package! \nTimestamp: ${new Date().getTime()} \nPackage: `,
+        `Shipped a package! \nTimestamp: ${new Date().getTime()}: `,
         this.outgoing_packages[0]);
       this.outgoing_packages.shift();
       this.ship_package();
