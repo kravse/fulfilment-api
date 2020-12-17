@@ -1,5 +1,5 @@
 interface LoggerService {
-  log_error(errorMsg, code):void;
+  log_error(err_msg):void;
   log_message(title, msg, value?):void;
 }
 
