@@ -1,15 +1,15 @@
 interface LoggerService {
-  logError(errorMsg, code):void;
-  logMessage(title, msg, value?):void;
+  log_error(errorMsg, code):void;
+  log_message(title, msg, value?):void;
 }
 
 class LoggerServiceImpl implements LoggerService {
-  public logError(err_msg):void {
+  public log_error(err_msg):void {
     console.info(`---------ERROR---------`);
     console.error(`Message: ${err_msg}`);
   }
 
-  public logMessage(title, msg, value?):void {
+  public log_message(title, msg, value?):void {
     console.info(`---------${title.toUpperCase()}---------`);
     console.info(`Message: ${msg}`);
     if (value) console.info(value);

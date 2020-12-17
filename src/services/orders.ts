@@ -69,7 +69,7 @@ class OrdersServiceImpl implements OrdersService {
     this.ship_package()
 
     if (unfulfilled.length > 0) {
-      Logger.logMessage('Unfulfiled packages',
+      Logger.log_message('Unfulfiled packages',
         `Unable to fulfill the following packages, stored for later.`,
         unfulfilled);
 
@@ -86,7 +86,7 @@ class OrdersServiceImpl implements OrdersService {
 
   public process_unfulfilled() {
     if (this.unfulfiled_orders.length === 0) return;
-    Logger.logMessage('processing orders', `Processed ${this.unfulfiled_orders.length} unfulfilled orders; `);
+    Logger.log_message('processing orders', `Processed ${this.unfulfiled_orders.length} unfulfilled orders; `);
     let orders = this.unfulfiled_orders;
     this.unfulfiled_orders = [];
     for (let order of orders) {
@@ -96,7 +96,7 @@ class OrdersServiceImpl implements OrdersService {
 
   private ship_package() {
     if (this.outgoing_packages.length > 0) {
-      Logger.logMessage('shipping notice',
+      Logger.log_message('shipping notice',
         `Shipped a package! \nTimestamp: ${new Date().getTime()}: `,
         this.outgoing_packages[0]);
       this.outgoing_packages.shift();
