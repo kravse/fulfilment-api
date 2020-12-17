@@ -3,6 +3,7 @@ import { Logger } from '@/services/logger';
 
 interface OrdersService {
   process_orders(order): void;
+  process_unfulfilled(): void;
 }
 
 function Package(order_id, items?, total_weight?) {
