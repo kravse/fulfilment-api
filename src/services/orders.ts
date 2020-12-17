@@ -9,6 +9,15 @@ function Package(order_id, items?, total_weight?) {
   this.items = items || [];
   this.order_id = order_id;
   this.total_weight = total_weight || 0;
+  this.update = (newItem, newWeight) => {
+    this.items = [...this.items, newItem]
+    this.total_weight += newWeight;
+  }
+}
+
+function Item(product_id, quantity) {
+  this.product_id = product_id;
+  this.quantity = quantity;
 }
 
 class OrdersServiceImpl implements OrdersService {
@@ -23,18 +32,15 @@ class OrdersServiceImpl implements OrdersService {
     for (let i = 0; i < order.requested.length; i++) {
       let order_item = order.requested[i];
       let inventory_item = Inventory.get_product(order_item.product_id);
-      let remaining_mass = 1800 - current_package.total_weight;
-      let packages_to_send = 0;
-      let max_packages = Math.floor(remaining_mass / inventory_item.mass_g);
+      let max_packages = Math.floor((1800 - current_package.total_weight) / inventory_item.mass_g);
+      let packages_to_send = order_item.quantity;
 
       if (order_item.quantity === 0) {
-        remaining_orders.requested.splice(i, 1)
+        remaining_orders.requested.splice(i, 1);
         continue;
       }
 
-      if (order_item.quantity < max_packages) {
-        packages_to_send = order_item.quantity;
-      } else {
+      if (order_item.quantity > max_packages) {
         packages_to_send = Math.min(max_packages, inventory_item.quantity);
       }
 
@@ -42,23 +48,16 @@ class OrdersServiceImpl implements OrdersService {
       const more_than_zero_left = order_item.quantity - packages_to_send > 0;
 
       if (more_than_available_required && more_than_zero_left) {
-        unfulfilled.push({
-          product_id: order.requested[i].product_id,
-          quantity: order_item.quantity - packages_to_send
-        });
+        unfulfilled.push(new Item(order.requested[i].product_id, order_item.quantity - packages_to_send));
         remaining_orders.requested[i].quantity -= order_item.quantity - packages_to_send;
       }
 
-      let projected_mass = current_package.total_weight + (packages_to_send * inventory_item.mass_g)
-      if (projected_mass <= 1800) {
-        current_package = new Package(
-          current_package.order_id,
-          [...current_package.items, {
-            product_id: order_item.product_id,
-            quantity: packages_to_send
-          }],
-          current_package.total_weight += packages_to_send * inventory_item.mass_g
-        );
+      if (current_package.total_weight + (packages_to_send * inventory_item.mass_g) <= 1800) {
+        current_package.update(
+          new Item(order_item.product_id, packages_to_send),
+          packages_to_send * inventory_item.mass_g
+        )
+
         Inventory.update_product_quanity(inventory_item.product_id, packages_to_send);
         remaining_orders.requested[i].quantity -= packages_to_send
       } else {
@@ -81,8 +80,7 @@ class OrdersServiceImpl implements OrdersService {
     }
 
     if (remaining_orders.requested.length > 0) {
-      this.process_orders(remaining_orders)
-      return;
+      this.process_orders(remaining_orders);
     }
   }
 

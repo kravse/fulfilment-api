@@ -7,6 +7,7 @@ yarn-error.log*
 tests/e2e/videos/*
 
 # Editor directories and files
+.zip
 .idea
 .env
 ngrok

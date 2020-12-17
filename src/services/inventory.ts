@@ -18,9 +18,7 @@ function Product(product) {
 interface InventoryService {
   init_catalogue(inventory): void;
   get_product(productId): product;
-  add_inventory(key?): void;
   process_restock(inventory): void;
-  get_catalogue():any;
   update_product_quanity(productId, quantity):void;
 }
 
@@ -31,7 +29,8 @@ class InventoryServiceImpl implements InventoryService {
     this.all_inventory = new Map(inventory.map(key => [key.product_id, Object.assign(key, {quantity: key.quantity || 0})]));
     Logger.logMessage('Catalogue Created', `${this.all_inventory.size} items added to the catalogue.`);
   }
-  public get_product(productId): product {
+
+  public get_product(productId):product {
     let item = this.all_inventory.get(productId)
     if (item) {
       return new Product(item)
@@ -39,37 +38,33 @@ class InventoryServiceImpl implements InventoryService {
       return
     }
   }
+
   public update_product_quanity(productId, quantity):void {
     let newProduct = this.all_inventory.get(productId)
     newProduct.quantity = Math.max(0, newProduct.quantity - quantity)
     this.all_inventory.set(productId, newProduct)
     return
   }
-  public get_catalogue(): object {
-    return this.all_inventory
-  }
-  public add_inventory(key?): void {
-    this.all_inventory.set(key.product_id, key)
-  }
+
   public process_restock(inventory):void {
     let failed_items = [];
-    Logger.logMessage('Restock', `Adding ${inventory.length} items to the inventory.`)
+    Logger.logMessage('Restock', `Restocking ${inventory.length} items to the inventory.`);
     for (var item of inventory) {
       let current_item = this.get_product(item.product_id);
       if (current_item) {
-        current_item.quantity += item.quantity
+        current_item.quantity += item.quantity;
         this.all_inventory.set(current_item.product_id, current_item);
       } else {
-        failed_items.push(item.product_id)
+        failed_items.push(item.product_id);
       }
     }
     Orders.process_unfulfilled();
 
     if (failed_items.length > 0) {
-      Logger.logError(`The following items were unable to be added to the inventory: ${failed_items}`)
+      Logger.logError(`The following items were unable to be added to the inventory: ${failed_items}`);
     }
   }
 }
 
-const Inventory = new InventoryServiceImpl()
+const Inventory = new InventoryServiceImpl();
 export { Inventory };
