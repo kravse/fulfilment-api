@@ -22,15 +22,15 @@ class OrdersServiceImpl implements OrdersService {
 
     for (let i = 0; i < order.requested.length; i++) {
       let order_item = order.requested[i];
+      let inventory_item = Inventory.get_product(order_item.product_id);
+      let remaining_mass = 1800 - current_package.total_weight;
+      let packages_to_send = 0;
+      let max_packages = Math.floor(remaining_mass / inventory_item.mass_g);
+
       if (order_item.quantity === 0) {
         remaining_orders.requested.splice(i, 1)
         continue;
       }
-      let inventory_item = Inventory.get_product(order_item.product_id);
-      let remaining_mass = 1800 - current_package.total_weight;
-      let packages_to_send = 0;
-
-      let max_packages = Math.floor(remaining_mass / inventory_item.mass_g);
 
       if (order_item.quantity < max_packages) {
         packages_to_send = order_item.quantity;
@@ -49,8 +49,6 @@ class OrdersServiceImpl implements OrdersService {
         remaining_orders.requested[i].quantity -= order_item.quantity - packages_to_send;
       }
 
-      Inventory.update_product_quanity(inventory_item.product_id, inventory_item.quantity);
-
       let projected_mass = current_package.total_weight + (packages_to_send * inventory_item.mass_g)
       if (projected_mass <= 1800) {
         current_package = new Package(
@@ -61,6 +59,7 @@ class OrdersServiceImpl implements OrdersService {
           }],
           current_package.total_weight += packages_to_send * inventory_item.mass_g
         );
+        Inventory.update_product_quanity(inventory_item.product_id, packages_to_send);
         remaining_orders.requested[i].quantity -= packages_to_send
       } else {
         this.outgoing_packages.push(current_package)
@@ -69,6 +68,7 @@ class OrdersServiceImpl implements OrdersService {
 
     if (current_package.items.length > 0) this.outgoing_packages.push(current_package)
     this.ship_package()
+
     if (unfulfilled.length > 0) {
       Logger.logMessage('Unfulfiled packages',
         `Unable to fulfill the following packages, stored for later.`,
@@ -79,6 +79,7 @@ class OrdersServiceImpl implements OrdersService {
         requested: unfulfilled
       });
     }
+
     if (remaining_orders.requested.length > 0) {
       this.process_orders(remaining_orders)
       return;
