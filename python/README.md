@@ -1,6 +1,7 @@
 # fullfillment api
 
-Wanted to see if I could brush up on my python well enough to solve this again.
+Wanted to see if I could brush up on my python well enough to solve this again. This is just a rough proof of concept. A final product would need code revisions, testing, etc. 
+
 
 ## Get Started:
 
